@@ -62,13 +62,13 @@
     }
 
     .footer img {
-      height: 12px;
+      height: 25px;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>서버 응답 속도 테스트기</h2>
+    <h트</h2>
     <input type="text" id="target" placeholder="예: https://example.com">
     <button id="startBtn" onclick="startTest()">테스트 시작</button>
 
@@ -84,7 +84,9 @@
   <script>
     let chart;
     let intervalId;
-    let times = [];
+    let labels = [];
+    let dataPoints = [];
+    let successList = [];
 
     async function startTest() {
       const target = document.getElementById('target').value.trim();
@@ -94,7 +96,9 @@
       }
 
       document.getElementById('startBtn').disabled = true;
-      times = [];
+      labels = [];
+      dataPoints = [];
+      successList = [];
       updateChart();
 
       let count = 0;
@@ -110,14 +114,17 @@
         const start = performance.now();
         let success = false;
         try {
-          const response = await fetch(target, { mode: 'no-cors', cache: 'no-store' });
+          await fetch(target, { mode: 'no-cors', cache: 'no-store' });
           success = true;
         } catch (e) {
           success = false;
         }
         const end = performance.now();
         const latency = Math.round(end - start);
-        times.push({ x: (count + 1) * 5, y: latency, success });
+
+        labels.push(`${(count + 1) * 5}s`);
+        dataPoints.push(latency);
+        successList.push(success);
 
         updateChart();
         count++;
@@ -130,9 +137,10 @@
         chart = new Chart(ctx, {
           type: 'line',
           data: {
+            labels: labels,
             datasets: [{
               label: '응답 시간 (ms)',
-              data: [],
+              data: dataPoints,
               borderColor: '#0070f3',
               backgroundColor: 'rgba(0,112,243,0.1)',
               tension: 0.3
@@ -141,30 +149,31 @@
           options: {
             scales: {
               x: {
+                type: 'category',
                 title: { display: true, text: '시간 (초)' }
               },
               y: {
-                title: { display: true, text: '응답 시간 (ms)' },
-                beginAtZero: true
+                beginAtZero: true,
+                title: { display: true, text: '응답 시간 (ms)' }
               }
             }
           }
         });
+      } else {
+        chart.data.labels = labels;
+        chart.data.datasets[0].data = dataPoints;
+        chart.update();
       }
-
-      chart.data.datasets[0].data = times;
-      chart.update();
     }
 
     function showStats() {
-      const successTimes = times.filter(t => t.success).map(t => t.y);
-      const min = Math.min(...successTimes);
-      const max = Math.max(...successTimes);
-      const avg = Math.round(successTimes.reduce((a, b) => a + b, 0) / successTimes.length || 0);
+      const valid = dataPoints.filter((_, i) => successList[i]);
+      const min = Math.min(...valid);
+      const max = Math.max(...valid);
+      const avg = valid.length ? Math.round(valid.reduce((a, b) => a + b, 0) / valid.length) : 0;
 
-      const statsDiv = document.getElementById("stats");
-      statsDiv.innerHTML = `
-        <p>✅ 접속 성공 횟수: ${successTimes.length} / 10</p>
+      document.getElementById("stats").innerHTML = `
+        <p>✅ 접속 성공 횟수: ${valid.length} / 10</p>
         <p>📉 최소 응답: ${min || '-'} ms</p>
         <p>📈 최대 응답: ${max || '-'} ms</p>
         <p>📊 평균 응답: ${avg || '-'} ms</p>
@@ -173,4 +182,3 @@
   </script>
 </body>
 </html>
-
